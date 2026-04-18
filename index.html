@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Filmový Kvíz pro Míšu</title>
+    
+    <link rel="icon" type="image/png" href="favicon.png">
+
+    <style>
+        /* NAČTENÍ NOVÉHO PÍSMA */
+        @font-face {
+            font-family: 'FunnelDisplay';
+            src: url('FunnelDisplay-Light.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        :root {
+            --space-bg: #0a0e1a; 
+            --card-bg: #d1d9e6;  
+            --text-main: #0a0e1a; 
+            --btn-base: rgba(255, 255, 255, 0.4); 
+            --btn-hover: #b8c2d1; 
+            --accent-title: #2c1b62;
+            --main-font: 'FunnelDisplay', 'Segoe UI', 'Arial', 'Segoe UI Symbol', sans-serif;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            font-family: var(--main-font);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: var(--space-bg);
+            overflow-x: hidden;
+        }
+
+        button, h1, h2, p, span, div {
+            font-family: var(--main-font);
+        }
+
+        #starfield-static {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .star {
+            position: absolute;
+            background-color: white;
+            border-radius: 50%;
+            opacity: 0.8;
+        }
+
+        #quiz-container {
+            position: relative;
+            background: var(--card-bg);
+            padding: 40px;
+            border-radius: 25px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+            max-width: 650px;
+            width: 90%;
+            text-align: center;
+            z-index: 10;
+            color: var(--text-main);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .quiz-title {
+            display: block;
+            font-size: 4rem;
+            color: var(--accent-title);
+            margin: 15px 0;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .quiz-content, .result-screen { display: none; }
+
+        .question {
+            font-size: 1.4rem;
+            margin-bottom: 25px;
+            font-weight: bold;
+        }
+
+        .options-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .option-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            cursor: pointer;
+        }
+
+        button.option-btn {
+            padding: 12px;
+            border: 1px solid rgba(0,0,0,0.1);
+            border-radius: 12px;
+            background: var(--btn-base);
+            color: var(--text-main);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.95rem;
+            font-weight: 600;
+            height: 100%;
+            font-family: var(--main-font);
+        }
+
+        .option-img {
+            width: 100px;
+            height: 100px;
+            object-fit: contain;
+            border-radius: 4px;
+            margin-top: 5px;
+            vertical-align: middle;
+        }
+
+        button.option-btn:hover { background-color: var(--btn-hover); }
+
+        #start-btn, #restart-btn {
+            background-color: var(--space-bg);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            margin-top: 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: bold;
+            font-family: var(--main-font);
+        }
+
+        .movie-img {
+            width: 100%;
+            max-width: 300px;
+            border-radius: 15px;
+            margin: 20px 0;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        /* NOVÝ STYL PRO RÁMEČEK S POPISEM */
+        .desc-box {
+            background-color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px auto;
+            max-width: 90%;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .movie-desc {
+            font-style: italic;
+            margin: 0;
+            line-height: 1.5;
+            color: #333;
+        }
+
+        .final-msg {
+            font-weight: bold;
+            margin-top: 20px;
+            color: var(--accent-title);
+        }
+
+        @media (max-width: 500px) {
+            .options-container { grid-template-columns: 1fr; }
+            .quiz-title { font-size: 2.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="starfield-static"></div>
+
+<div id="quiz-container">
+    <div id="welcome-screen">
+        <h1>Ahoj Míšo! <br> Vítám tě u kvízu</h1>
+        <span class="quiz-title">Netflix & Bes</span>
+        <p>Konec nekonečných debat o tom, na co se podíváme. Teď je to v rukou osudu (a tvých odpovědí). Odpověz na 8 otázek a dozvíš se, který film je ten pravý.</p>
+        <button id="start-btn" onclick="startQuiz()"> →  Začít kvíz  ← </button>
+    </div>
+
+    <div id="quiz-content" class="quiz-content">
+        <div id="progress" style="margin-bottom: 10px; opacity: 0.7;"></div>
+        <div class="question" id="question-text"></div>
+        <div class="options-container" id="options"></div>
+    </div>
+
+    <div id="result-screen" class="result-screen">
+        <h2>Výhercem se stává... *drumrolls please* ...🥁</h2>
+        <h1 id="recommended-movie" style="color: var(--accent-title);"></h1>
+        <img id="movie-image" class="movie-img" src="" alt="Film">
+        
+        <div class="desc-box">
+            <p id="movie-description" class="movie-desc"></p>
+        </div>
+        
+        <p class="final-msg">Doufám, že jsi s výsledkem spokojen, pokud ne, můžeš si test zopakovat.</p>
+        <p>S sebou si přines nějaké pohodlné oblečení, zmrzlinu, nějaký další snack (volitelné) a hlavně dobrou náladu!</p>
+        
+        <button id="restart-btn" onclick="resetToWelcome()">Zkusit znovu</button>
+    </div>
+</div>
+
+<audio id="drumroll-sound" src="drumroll.mp3"></audio>
+<audio id="yay-sound" src="yay.mp3"></audio>
+
+<script>
+    const movieData = {
+        "Project Hail Mary": {
+            desc: "Osamělý vědec se probouzí na vesmírné lodi bez vzpomínek a musí zachránit Zemi před katastrofou za pomoci nečekaného mimozemského přítele.",
+            img: "hailmary.jpg" 
+        },
+        "The Housemaid": {
+            desc: "Erotický thriller o mladé ženě, která se stane pokojskou v bohaté rodině a zaplete se do nebezpečného milostného trojúhelníku plného intrik a pomsty.",
+            img: "housemaid.jpg"
+        },
+        "Avatar: Fire and Ash": {
+            desc: "Pokračování ságy z Pandory nás zavede k agresivnímu kmenu ohně, kde Jake a Neytiri musí čelit dosud největší hrozbě pro svůj svět.",
+            img: "avatar.jpg"
+        },
+        "The SpongeBob Movie: Search for SquarePants": {
+            desc: "SpongeBob se vydává do hlubin oceánu na své dosud nejbláznivější dobrodružství, aby zachránil Bikini Bottom před novou bizarní hrozbou.",
+            img: "spongebob.jpg"
+        }
+    };
+
+    const questions = [
+        { q: "1. Jaký žánr tě dnes nejvíc láká?", options: [
+            {text:"Sci-fi dobrodružství", f:"Project Hail Mary", img: "scifi.png"}, 
+            {text:"Psychologický thriller", f:"The Housemaid", img: "brain.png"}, 
+            {text:"Epické fantasy", f:"Avatar: Fire and Ash", img: "fantasy.png"}, 
+            {text:"Animovaná komedie", f:"The SpongeBob Movie: Search for SquarePants", img: "comedy.png"}
+        ] },
+        { q: "2. Kdo by měl být hlavním hrdinou?", options: [
+            {text:"Geniální vědec", f:"Project Hail Mary", img: "science.png"}, 
+            {text:"Sexy prsatá žena ( ͡° ͜ʖ ͡°)", f:"The Housemaid", img: "boobs.png"}, 
+            {text:"Válečník s vocasem", f:"Avatar: Fire and Ash", img: "tail.jpeg"}, 
+            {text:"Optimista co dělá burgery", f:"The SpongeBob Movie: Search for SquarePants", img: "burger.png"}
+        ] },
+        { q: "3. Jaká zápletka zní nejzajímavěji?", options: [
+            {text:"Záchrana lidstva ve vesmíru", f:"Project Hail Mary", img: "space.png"}, 
+            {text:"Zakázaný románek a pomsta", f:"The Housemaid", img: "kiss.png"}, 
+            {text:"Válka mezi kmeny", f:"Avatar: Fire and Ash", img: "war.png"}, 
+            {text:"Cesta za ztraceným přítelem", f:"The SpongeBob Movie: Search for SquarePants", img: "sad.png"}
+        ] },
+        { q: "4. Jaký/á je tvůj oblíbený/á herec/herečka?", options: [
+            {text:"Ryan Gosling", f:"Project Hail Mary", img: "ryan.png"}, 
+            {text:"Sydney Sweeney & Amanda Seyfried", f:"The Housemaid", img: "sydney.jpg"}, 
+            {text:"Sam Worthington", f:"Avatar: Fire and Ash", img: "sam.jpg"}, 
+            {text:"Radši mám animáky ☝️🤓", f:"The SpongeBob Movie: Search for SquarePants", img: "happy.png"}
+        ] },
+        { q: "5. Jaký je celkový vibe, který hledáš?", options: [
+            {text:"Intelektuální a fascinující", f:"Project Hail Mary", img: "intelectual.png"}, 
+            {text:"Napínavý a temně elegantní", f:"The Housemaid", img: "wowow.png"}, 
+            {text:"Vizuálně omračující a epický", f:"Avatar: Fire and Ash", img: "cantsee.png"}, 
+            {text:"Veselý, barevný a odpočinkový", f:"The SpongeBob Movie: Search for SquarePants", img: "chillguy.png"}
+        ] },
+        { q: "6. Co očekáváš od vizuální stránky?", options: [
+            {text:"Záběry z vesmíru a vesmírné technologie", f:"Project Hail Mary", img: "spacet.png"}, 
+            {text:"Luxusní sídlo a pohledné ženy ( ͡° ͜ʖ ͡°)", f:"The Housemaid", img: "money.png"}, 
+            {text:"Green screen a hodně efektů ohně", f:"Avatar: Fire and Ash", img: "fire.png"}, 
+            {text:"Hravou a barevnou animaci 🥰", f:"The SpongeBob Movie: Search for SquarePants", img: "happyc.png"}
+        ] },
+        { q: "7. Kdo by byl nejlepší filmový společník?", options: [
+            {text:"Inteligentní mimozemšťan", f:"Project Hail Mary", img: "aliencat.png"}, 
+            {text:"Tajemná milenka ( ͡° ͜ʖ ͡°)", f:"The Housemaid", img: "feet.png"}, 
+            {text:"Létající drak", f:"Avatar: Fire and Ash", img: "toothless.png"}, 
+            {text:"Růžová hvězdice", f:"The SpongeBob Movie: Search for SquarePants", img: "pink.png"}
+        ] },
+        { q: "8. Jak se chceš cítit po skončení filmu?", options: [
+            {text:"Ohromen velikostí vesmíru", f:"Project Hail Mary", img: "wow.png"}, 
+            {text:"V šoku z nečekaného konce", f:"The Housemaid", img: "shock.png"}, 
+            {text:"Dojatý silou rodiny 😭", f:"Avatar: Fire and Ash", img: "happycrying.png"}, 
+            {text:"V naprosté pohodě 🤪", f:"The SpongeBob Movie: Search for SquarePants", img: "ok.png"}
+        ] }
+    ];
+
+    let currentQuestionIndex = 0;
+    let scores = {};
+
+    function createStars() {
+        const field = document.getElementById('starfield-static');
+        field.innerHTML = '';
+        for (let i = 0; i < 150; i++) {
+            const s = document.createElement('div');
+            s.className = 'star';
+            const size = Math.random() * 2 + 1;
+            s.style.width = size+'px'; s.style.height = size+'px';
+            s.style.top = Math.random()*100+'vh'; s.style.left = Math.random()*100+'vw';
+            field.appendChild(s);
+        }
+    }
+    createStars();
+
+    function startQuiz() {
+        document.getElementById('welcome-screen').style.display = 'none';
+        document.getElementById('quiz-content').style.display = 'block';
+        scores = {"Project Hail Mary":0, "The Housemaid":0, "Avatar: Fire and Ash":0, "The SpongeBob Movie: Search for SquarePants":0};
+        loadQuestion();
+    }
+
+    function loadQuestion() {
+        const q = questions[currentQuestionIndex];
+        document.getElementById("progress").innerText = `Otázka ${currentQuestionIndex + 1} z ${questions.length}`;
+        document.getElementById("question-text").innerText = q.q;
+        const container = document.getElementById("options");
+        container.innerHTML = "";
+        
+        q.options.sort(() => Math.random() - 0.5).forEach(opt => {
+            const wrapper = document.createElement("div");
+            wrapper.className = "option-wrapper";
+            
+            const btn = document.createElement("button");
+            btn.className = "option-btn";
+            btn.innerHTML = `${opt.text} <br> <img src="${opt.img}" class="option-img" alt="náhled">`;
+            
+            btn.onclick = () => {
+                scores[opt.f]++;
+                currentQuestionIndex++;
+                if (currentQuestionIndex < questions.length) loadQuestion();
+                else showResult();
+            };
+            
+            wrapper.appendChild(btn);
+            container.appendChild(wrapper);
+        });
+    }
+
+    function showResult() {
+        document.getElementById('quiz-content').style.display = 'none';
+        document.getElementById('result-screen').style.display = 'block';
+        
+        const drumroll = document.getElementById('drumroll-sound');
+        const yay = document.getElementById('yay-sound');
+
+        drumroll.play().catch(e => console.log("Drumroll failed."));
+        drumroll.onended = function() {
+            yay.play().catch(e => console.log("Yay failed."));
+        };
+
+        const winner = Object.keys(scores).reduce((a, b) => scores[a] > scores[b] ? a : b);
+        document.getElementById("recommended-movie").innerText = winner;
+        document.getElementById("movie-description").innerText = movieData[winner].desc;
+        document.getElementById("movie-image").src = movieData[winner].img;
+    }
+
+    function resetToWelcome() {
+        currentQuestionIndex = 0;
+        document.getElementById('result-screen').style.display = 'none';
+        document.getElementById('welcome-screen').style.display = 'block';
+    }
+</script>
+
+</body>
+</html>
